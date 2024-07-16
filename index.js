@@ -31,6 +31,7 @@ async function run() {
     await client.connect();
     
     const usersDB = client.db('mfsDB').collection('users');
+    const servicesDB = client.db('mfsDB').collection('services');
 
     // jwt
 app.post('/jwt',(req,res) => {
@@ -38,7 +39,27 @@ app.post('/jwt',(req,res) => {
     const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET,{expiresIn : '1h'})
     res.send({token})
 })
+
+// verifyToken 
+const verifyToken = async(req,res,next) => {
+    if(!req.headers.authorization){
+        return res.status(401).send({message : 'Unauthorized'})
+    }
+    const token = req.headers.authorization.split(' ')[1];
+    jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,decoded) =>{
+        if(err){
+            return res.status(400).send({message : 'Bad Request'})
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
+
     
+app.get('/services',verifyToken,async(req,res) => {
+    const result = await servicesDB.find().toArray();
+    res.send(result);
+})
 app.post('/users',async(req,res) => { 
     const myPlaintextPassword = req.body.pin;
     bcrypt.genSalt(saltRounds,(err,salt) => {

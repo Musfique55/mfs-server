@@ -4,7 +4,7 @@ const port = 3000;
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
-
+const jwt = require('jsonwebtoken');
 
 require('dotenv').config();
 app.use(cors());
@@ -32,6 +32,12 @@ async function run() {
     
     const usersDB = client.db('mfsDB').collection('users');
 
+    // jwt
+app.post('/jwt',(req,res) => {
+    const user = req.body;
+    const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET,{expiresIn : '1h'})
+    res.send({token})
+})
     
 app.post('/users',async(req,res) => { 
     const myPlaintextPassword = req.body.pin;
@@ -56,17 +62,30 @@ app.post('/users',async(req,res) => {
 })
 
 app.post('/login',async(req,res) => {
-    const identifier = req.body.emailMobile;
-    const pin = req.body.pin;
-    // console.log(email,pin);
-    const query = identifier.includes('@') ? {email : identifier} : {mobile : identifier};
-    const user = await usersDB.findOne(query);
-    if(user && await bcrypt.compare(pin,user.pin)){
-        res.status(200).send("Logged in successfully");
-    }else{
-        res.send("error");
-    }
-})
+        const identifier = req.body.emailMobile;
+        const pin = req.body.pin;
+        const query = identifier.includes('@') ? {email : identifier} : {mobile : identifier};
+        const user = await usersDB.findOne(query);
+        const doc = {
+        $set : { available : true}
+        }
+        if(user && await bcrypt.compare(pin,user.pin)){
+            await usersDB.updateOne(query,doc)
+            res.status(200).send(user.available);
+        }else{
+            res.send(false);
+        }
+    })
+
+    app.post('/logout',async(req,res) => {
+        const identifier = req.body.emailMobile;
+        const query = identifier.includes('@') ? { email : identifier} : {mobile : identifier}
+        const doc = {
+            $set : {available : req.body.available}
+        }
+        await usersDB.updateOne(query,doc);
+      
+    })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");

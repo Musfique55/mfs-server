@@ -99,12 +99,18 @@ app.post('/login',async(req,res) => {
     })
 
     app.post('/logout',async(req,res) => {
-        const identifier = req.body.emailMobile;
+        let identifier;
+        if(req.body.userInfo){
+            identifier = req.body.userInfo;
+        }else{
+            return res.send({message : 'error occured'})
+        }
         const query = identifier.includes('@') ? { email : identifier} : {mobile : identifier}
         const doc = {
             $set : {available : req.body.available}
         }
-        await usersDB.updateOne(query,doc);
+        const result = await usersDB.updateOne(query,doc);
+        res.send(result);
       
     })
     // Send a ping to confirm a successful connection
